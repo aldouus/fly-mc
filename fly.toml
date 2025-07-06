@@ -1,0 +1,32 @@
+app = 'minecraft'
+primary_region = 'fra'
+
+[build]
+  dockerfile = './dockerfile'
+
+[processes]
+  app = ''
+
+[[mounts]]
+  source = 'minecraft'
+  destination = '/server'
+  initial_size = '10gb'
+
+[[services]]
+  protocol = 'tcp'
+  internal_port = 25565
+  processes = ['app']
+
+  [[services.ports]]
+    port = 25565
+
+[[services]]
+  protocol = 'tcp'
+  internal_port = 25575
+  ports = []
+  processes = ['app']
+
+[[vm]]
+  memory = '8gb'
+  cpu_kind = 'performance'
+  cpus = 1
