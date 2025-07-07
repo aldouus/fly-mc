@@ -2,7 +2,7 @@
 
 ## Overview
 
-This project lets you run a basic configurable PaperMC Minecraft server on Fly.io, with automated backups to Cloudflare R2, auto shutdown, and (almost) full configuration via environment variables.
+This project lets you run a basic configurable PaperMC Minecraft server on Fly.io, with automated backups to Cloudflare R2, auto shutdown, Geyser for cross-play between Java and Bedrock editions, and (almost) full configuration via environment variables.
 
 Current configured version: 1.21.7, build 16.
 
@@ -267,6 +267,11 @@ SPIGOT_CONFIG_VERSION=
 AUTOSHUTDOWN_INITIAL_DELAY_SECONDS=
 AUTOSHUTDOWN_SHUTDOWN_DELAY_SECONDS=
 AUTOSHUTDOWN_ENABLE_LOGGING=
+
+# Geyser plugin config
+GEYSER_BEDROCK_ADDRESS=
+GEYSER_BEDROCK_PORT=
+GEYSER_BEDROCK_CLONE_REMOTE_PORT=
 ```
 
 ## References
@@ -276,6 +281,7 @@ AUTOSHUTDOWN_ENABLE_LOGGING=
 - [Cloudflare R2 Documentation](https://developers.cloudflare.com/r2/)
 - [PaperMC Documentation](https://docs.papermc.io/)
 - [rclone Documentation](https://rclone.org/)
+- [GeyserMC Documentation](https://geysermc.org/wiki/geyser/)
 - [AutoShutdown Plugin](https://github.com/incogn1/AutoShutdown)
 - [mcrcon](https://github.com/Tiiffi/mcrcon)
 

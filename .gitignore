@@ -1,6 +1,6 @@
 *.env*
 !.env.example
 
-data/
+server/
 
 .DS_Store

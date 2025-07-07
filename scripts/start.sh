@@ -1,6 +1,5 @@
 #!/bin/bash
 
-# Backup on shutdown
 trap '/backup.sh' EXIT
 
 if [ -z "$JAR_URL" ]; then
@@ -26,29 +25,33 @@ fi
 PLUGIN_DIR="plugins"
 mkdir -p "$PLUGIN_DIR"
 
-# Read plugins from the PLUGINS env variable, one per line or space
-IFS=$'\n' read -rd '' -a plugin_entries <<<"$PLUGINS"
+for PLUGIN_ENV in AUTOSHUTDOWN_PLUGIN GEYSER_PLUGIN FLOODGATE_PLUGIN VIAVERSION_PLUGIN; do
+  PLUGIN_URL="${!PLUGIN_ENV}"
+  if [ -n "$PLUGIN_URL" ]; then
+    entry="${PLUGIN_URL#"${PLUGIN_URL%%[![:space:]]*}"}"
+    entry="${entry%"${entry##*[![:space:]]}"}"
+    if [[ "$entry" != \#* && -n "$entry" ]]; then
+      if [[ "$entry" == *"|"* ]]; then
+        PLUGIN_JAR="${entry%%|*}"
+        PLUGIN_URL="${entry#*|}"
+      else
+        PLUGIN_JAR=$(basename "$entry")
+        PLUGIN_URL="$entry"
+      fi
 
-for entry in "${plugin_entries[@]}"; do
-  # Skip empty lines
-  [ -z "$entry" ] && continue
-
-  if [[ "$entry" == *"|"* ]]; then
-    PLUGIN_JAR="${entry%%|*}"
-    PLUGIN_URL="${entry#*|}"
-  else
-    PLUGIN_URL="$entry"
-    PLUGIN_JAR=$(basename "$PLUGIN_URL")
-  fi
-
-  if [ ! -f "$PLUGIN_DIR/$PLUGIN_JAR" ]; then
-    echo "Downloading $PLUGIN_JAR from $PLUGIN_URL"
-    curl -L -o "$PLUGIN_DIR/$PLUGIN_JAR" "$PLUGIN_URL"
+      PLUGIN_PATH="$PLUGIN_DIR/$PLUGIN_JAR"
+      if [ ! -f "$PLUGIN_PATH" ] || [ ! -s "$PLUGIN_PATH" ]; then
+        rm -f "$PLUGIN_PATH"
+        curl -fL -o "$PLUGIN_PATH" "$PLUGIN_URL"
+        if [ $? -ne 0 ]; then
+          echo "Failed to download $PLUGIN_URL"
+          exit 1
+        fi
+      fi
+    fi
   fi
 done
 
-# --- Helper: Set or Update a Property in server.properties ---
-# Only updates if the corresponding environment variable is set.
 set_prop() {
   key="$1"
   val="$2"
@@ -57,10 +60,6 @@ set_prop() {
     echo "$key=$val" >> server.properties
 }
 
-# --- Patch server.properties from Environment Variables ---
-# For every property, if ENV VAR is set, update it; otherwise, leave as-is.
-
-# List all server.properties options here, mapping ENV VAR to property key.
 [ -n "$ACCEPTS_TRANSFERS" ]                && set_prop accepts-transfers "$ACCEPTS_TRANSFERS"
 [ -n "$ALLOW_FLIGHT" ]                     && set_prop allow-flight "$ALLOW_FLIGHT"
 [ -n "$ALLOW_NETHER" ]                     && set_prop allow-nether "$ALLOW_NETHER"
@@ -124,14 +123,11 @@ set_prop() {
 [ -n "$VIEW_DISTANCE" ]                    && set_prop view-distance "$VIEW_DISTANCE"
 [ -n "$WHITE_LIST" ]                       && set_prop white-list "$WHITE_LIST"
 
-# --- Patch bukkit.yml from Environment Variables ---
-# Usage: set_bukkit <yaml_path> <env_var>
 set_bukkit() {
   yaml_path="$1"
   env_var="$2"
   val="${!env_var}"
   if [ -n "$val" ]; then
-    # Use yq if available, else fallback to sed (less robust)
     if command -v yq >/dev/null 2>&1; then
       yq -i ".$yaml_path = \"$val\"" bukkit.yml
     else
@@ -141,7 +137,6 @@ set_bukkit() {
   fi
 }
 
-# Patch settings
 set_bukkit "settings.allow-end" BUKKIT_SETTINGS_ALLOW_END
 set_bukkit "settings.warn-on-overload" BUKKIT_SETTINGS_WARN_ON_OVERLOAD
 set_bukkit "settings.permissions-file" BUKKIT_SETTINGS_PERMISSIONS_FILE
@@ -153,8 +148,6 @@ set_bukkit "settings.deprecated-verbose" BUKKIT_SETTINGS_DEPRECATED_VERBOSE
 set_bukkit "settings.shutdown-message" BUKKIT_SETTINGS_SHUTDOWN_MESSAGE
 set_bukkit "settings.minimum-api" BUKKIT_SETTINGS_MINIMUM_API
 set_bukkit "settings.use-map-color-cache" BUKKIT_SETTINGS_USE_MAP_COLOR_CACHE
-
-# Patch spawn-limits
 set_bukkit "spawn-limits.monsters" BUKKIT_SPAWN_LIMITS_MONSTERS
 set_bukkit "spawn-limits.animals" BUKKIT_SPAWN_LIMITS_ANIMALS
 set_bukkit "spawn-limits.water-animals" BUKKIT_SPAWN_LIMITS_WATER_ANIMALS
@@ -162,11 +155,7 @@ set_bukkit "spawn-limits.water-ambient" BUKKIT_SPAWN_LIMITS_WATER_AMBIENT
 set_bukkit "spawn-limits.water-underground-creature" BUKKIT_SPAWN_LIMITS_WATER_UNDERGROUND_CREATURE
 set_bukkit "spawn-limits.axolotls" BUKKIT_SPAWN_LIMITS_AXOLOTLS
 set_bukkit "spawn-limits.ambient" BUKKIT_SPAWN_LIMITS_AMBIENT
-
-# Patch chunk-gc
 set_bukkit "chunk-gc.period-in-ticks" BUKKIT_CHUNK_GC_PERIOD_IN_TICKS
-
-# Patch ticks-per
 set_bukkit "ticks-per.animal-spawns" BUKKIT_TICKS_PER_ANIMAL_SPAWNS
 set_bukkit "ticks-per.monster-spawns" BUKKIT_TICKS_PER_MONSTER_SPAWNS
 set_bukkit "ticks-per.water-spawns" BUKKIT_TICKS_PER_WATER_SPAWNS
@@ -175,12 +164,8 @@ set_bukkit "ticks-per.water-underground-creature-spawns" BUKKIT_TICKS_PER_WATER_
 set_bukkit "ticks-per.axolotl-spawns" BUKKIT_TICKS_PER_AXOLOTL_SPAWNS
 set_bukkit "ticks-per.ambient-spawns" BUKKIT_TICKS_PER_AMBIENT_SPAWNS
 set_bukkit "ticks-per.autosave" BUKKIT_TICKS_PER_AUTOSAVE
-
-# Patch aliases
 set_bukkit "aliases" BUKKIT_ALIASES
 
-# --- Patch spigot.yml from Environment Variables ---
-# Usage: set_spigot <yaml_path> <env_var>
 set_spigot() {
   yaml_path="$1"
   env_var="$2"
@@ -195,15 +180,12 @@ set_spigot() {
   fi
 }
 
-# --- messages ---
 set_spigot "messages.whitelist" SPIGOT_MESSAGES_WHITELIST
 set_spigot "messages.unknown-command" SPIGOT_MESSAGES_UNKNOWN_COMMAND
 set_spigot "messages.server-full" SPIGOT_MESSAGES_SERVER_FULL
 set_spigot "messages.outdated-client" SPIGOT_MESSAGES_OUTDATED_CLIENT
 set_spigot "messages.outdated-server" SPIGOT_MESSAGES_OUTDATED_SERVER
 set_spigot "messages.restart" SPIGOT_MESSAGES_RESTART
-
-# --- settings ---
 set_spigot "settings.bungeecord" SPIGOT_SETTINGS_BUNGEECORD
 set_spigot "settings.save-user-cache-on-stop-only" SPIGOT_SETTINGS_SAVE_USER_CACHE_ON_STOP_ONLY
 set_spigot "settings.sample-count" SPIGOT_SETTINGS_SAMPLE_COUNT
@@ -218,18 +200,11 @@ set_spigot "settings.netty-threads" SPIGOT_SETTINGS_NETTY_THREADS
 set_spigot "settings.log-villager-deaths" SPIGOT_SETTINGS_LOG_VILLAGER_DEATHS
 set_spigot "settings.log-named-deaths" SPIGOT_SETTINGS_LOG_NAMED_DEATHS
 set_spigot "settings.debug" SPIGOT_SETTINGS_DEBUG
-
-# --- settings.attribute ---
 set_spigot "settings.attribute.maxAbsorption.max" SPIGOT_SETTINGS_ATTRIBUTE_MAXABSORPTION_MAX
 set_spigot "settings.attribute.maxHealth.max" SPIGOT_SETTINGS_ATTRIBUTE_MAXHEALTH_MAX
 set_spigot "settings.attribute.movementSpeed.max" SPIGOT_SETTINGS_ATTRIBUTE_MOVEMENTSPEED_MAX
 set_spigot "settings.attribute.attackDamage.max" SPIGOT_SETTINGS_ATTRIBUTE_ATTACKDAMAGE_MAX
-
-# --- advancements ---
 set_spigot "advancements.disable-saving" SPIGOT_ADVANCEMENTS_DISABLE_SAVING
-# (Skipping 'advancements.disabled' list for simplicity)
-
-# --- world-settings.default (examples, add more as needed) ---
 set_spigot "world-settings.default.below-zero-generation-in-existing-chunks" SPIGOT_WORLDSETTINGS_DEFAULT_BELOW_ZERO_GENERATION_IN_EXISTING_CHUNKS
 set_spigot "world-settings.default.view-distance" SPIGOT_WORLDSETTINGS_DEFAULT_VIEW_DISTANCE
 set_spigot "world-settings.default.simulation-distance" SPIGOT_WORLDSETTINGS_DEFAULT_SIMULATION_DISTANCE
@@ -250,27 +225,15 @@ set_spigot "world-settings.default.hopper-can-load-chunks" SPIGOT_WORLDSETTINGS_
 set_spigot "world-settings.default.dragon-death-sound-radius" SPIGOT_WORLDSETTINGS_DEFAULT_DRAGON_DEATH_SOUND_RADIUS
 set_spigot "world-settings.default.verbose" SPIGOT_WORLDSETTINGS_DEFAULT_VERBOSE
 set_spigot "world-settings.default.max-tnt-per-tick" SPIGOT_WORLDSETTINGS_DEFAULT_MAX_TNT_PER_TICK
-
-# --- players ---
 set_spigot "players.disable-saving" SPIGOT_PLAYERS_DISABLE_SAVING
-
-# --- stats ---
 set_spigot "stats.disable-saving" SPIGOT_STATS_DISABLE_SAVING
-# (Skipping 'stats.forced-stats' map for simplicity)
-
-# --- commands ---
 set_spigot "commands.tab-complete" SPIGOT_COMMANDS_TAB_COMPLETE
 set_spigot "commands.send-namespaced" SPIGOT_COMMANDS_SEND_NAMESPACED
 set_spigot "commands.log" SPIGOT_COMMANDS_LOG
 set_spigot "commands.silent-commandblock-console" SPIGOT_COMMANDS_SILENT_COMMANDBLOCK_CONSOLE
 set_spigot "commands.enable-spam-exclusions" SPIGOT_COMMANDS_ENABLE_SPAM_EXCLUSIONS
-# (Skipping 'commands.spam-exclusions' and 'commands.replace-commands' lists for simplicity)
-
-# --- config-version ---
 set_spigot "config-version" SPIGOT_CONFIG_VERSION
 
-# --- Patch AutoShutdown config.yml from Environment Variables ---
-# Usage: set_autoshutdown <yaml_path> <env_var>
 set_autoshutdown() {
   yaml_path="$1"
   env_var="$2"
@@ -289,5 +252,35 @@ set_autoshutdown "initial_delay_seconds" AUTOSHUTDOWN_INITIAL_DELAY_SECONDS
 set_autoshutdown "shutdown_delay_seconds" AUTOSHUTDOWN_SHUTDOWN_DELAY_SECONDS
 set_autoshutdown "enable_logging" AUTOSHUTDOWN_ENABLE_LOGGING
 
-# --- Start the Minecraft Server ---
-java -Xms"${JAVA_XMS:-4G}" -Xmx"${JAVA_XMX:-4G}" -jar "${JAR_FILE:-paper.jar}" --nogui
+set_geyser() {
+  yaml_path="$1"
+  env_var="$2"
+  val="${!env_var}"
+  if [ -n "$val" ]; then
+    key=$(echo "$yaml_path" | awk -F. '{print $NF}')
+    parent=$(echo "$yaml_path" | awk -F. '{print $(NF-1)}')
+    if grep -q "^[[:space:]]*#\{0,1\}[[:space:]]*$key:" plugins/Geyser-Spigot/config.yml; then
+      sed -i "s|^[[:space:]]*#\{0,1\}[[:space:]]*$key:.*|  $key: $val|" plugins/Geyser-Spigot/config.yml
+    else
+      awk -v parent="$parent" -v key="$key" -v val="$val" '
+        $0 ~ "^[[:space:]]*"parent":" {
+          print
+          print "  "key": "val
+          next
+        }
+        1
+      ' plugins/Geyser-Spigot/config.yml > plugins/Geyser-Spigot/config.yml.tmp && mv plugins/Geyser-Spigot/config.yml.tmp plugins/Geyser-Spigot/config.yml
+    fi
+  fi
+}
+
+set_geyser "bedrock.server-name" GEYSER_BEDROCK_SERVER_NAME
+set_geyser "bedrock.address" GEYSER_BEDROCK_ADDRESS
+set_geyser "bedrock.port" GEYSER_BEDROCK_PORT
+set_geyser "bedrock.clone-remote-port" GEYSER_BEDROCK_CLONE_REMOTE_PORT
+set_geyser "remote.auth-type" GEYSER_REMOTE_AUTH_TYPE
+set_geyser "remote.address" "auto"
+
+
+java -Xms"${JAVA_XMS:-8G}" -Xmx"${JAVA_XMX:-8G}" -jar "${JAR_FILE:-paper.jar}" --nogui
+

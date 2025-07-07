@@ -2,7 +2,7 @@ app = 'minecraft'
 primary_region = 'fra'
 
 [build]
-  dockerfile = './dockerfile'
+  dockerfile = './Dockerfile'
 
 [processes]
   app = ''
@@ -21,6 +21,14 @@ primary_region = 'fra'
     port = 25565
 
 [[services]]
+  protocol = "udp"
+  internal_port = 19132
+  processes = ["app"]
+
+  [[services.ports]]
+    port = 19132
+
+[[services]]
   protocol = 'tcp'
   internal_port = 25575
   ports = []
@@ -30,3 +38,4 @@ primary_region = 'fra'
   memory = '8gb'
   cpu_kind = 'performance'
   cpus = 1
+

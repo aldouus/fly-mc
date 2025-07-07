@@ -13,6 +13,7 @@ COPY scripts/start.sh /start.sh
 COPY scripts/backup.sh /backup.sh
 RUN chmod +x /start.sh /backup.sh
 
-EXPOSE 25565 25575
+EXPOSE 25565 19132/udp
 VOLUME ["/server"]
 CMD ["/start.sh"]
+
