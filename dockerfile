@@ -2,7 +2,7 @@ FROM eclipse-temurin:21-jre
 WORKDIR /server
 
 RUN apt-get update && \
-    apt-get install -y curl unzip git vim build-essential yq cron && \
+    apt-get install -y curl unzip git vim build-essential yq && \
     curl https://rclone.org/install.sh | bash && \
     git clone https://github.com/Tiiffi/mcrcon.git /tmp/mcrcon && \
     cd /tmp/mcrcon && make && \
